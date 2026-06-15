@@ -1,0 +1,7 @@
+init disco_simulado.bin 65536 512
+info disco_simulado.bin
+alloc disco_simulado.bin
+alloc disco_simulado.bin
+info disco_simulado.bin
+free disco_simulado.bin 0
+info disco_simulado.bin

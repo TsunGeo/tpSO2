@@ -64,7 +64,7 @@ Além desses módulos, o projeto utiliza um arquivo de configuração compartilh
 
 <p>Geovana Beatriz de Oliveira</p>
 
-<p>Nome do Integrante 2</p>
+<p>Lucas Garcia Ferreira Franco Fonseca</p>
 
 <p>Nome do Integrante 3</p>
 
