@@ -5,10 +5,10 @@
 #define TAM_NOME 255
 
 typedef struct{
-    char nome[TAM_NOME];
-    int inode;
-    FileType type;
-    int usado;
+    char nome[TAM_NOME]; // nome do arquivo ou diretório
+    int inode; // inode ligado a esse nome
+    FileType type; // FILE ou DIRECTORY
+    int usado; // 0 = posição vazia, 1 = posição ocupada
 } Diretorio;
 
 void criarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *nome);
