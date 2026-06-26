@@ -1,0 +1,20 @@
+#ifndef DIRETORIO_H
+#define DIRETORIO_H
+
+#include "../i-node/inode.h"
+#define TAM_NOME 255
+
+typedef struct{
+    char nome[TAM_NOME];
+    int inode;
+    FileType type;
+    int usado;
+} Diretorio;
+
+void criarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *nome);
+void apagarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *nome);
+void renomearDiretorio(VirtualDisk *disk, Inode inodeTable[],  int inodePai, char *nomeAntigo, char *novoNome);
+void listarConteudoDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir);
+
+
+#endif // DIRETORIO_H
