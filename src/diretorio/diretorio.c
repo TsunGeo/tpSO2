@@ -7,34 +7,34 @@
 
 /* FUNÇÕES AUXILIARES */
 
-static int maxEntradasDiretorio(VirtualDisk *disk){
+static int maxDirEntries(VirtualDisk *disk){
     // Para simplificação vamos usar apenas 1 bloco por diretório
-    return disk->header.blockSize / sizeof(Diretorio);
+    return disk->header.blockSize / sizeof(DirectoryEntry);
 }
 
-static void inicializarEntradas(Diretorio entradas[], int maxEntradas){
+static void initEntries(DirectoryEntry entries[], int maxEntries){
     // Inicializa todas as entradas do diretório como vazias
-    for(int i=0; i<maxEntradas; i++){
-        entradas[i].nome[0] = '\0';
-        entradas[i].inode = -1;
-        entradas[i].type = DIRECTORY;
-        entradas[i].usado = 0;
+    for(int i=0; i<maxEntries; i++){
+        entries[i].name[0] = '\0';
+        entries[i].inode = -1;
+        entries[i].type = DIRECTORY;
+        entries[i].used = 0;
     }
 }
 
-static int carregarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir, Diretorio entradas[]){
+static int loadDirectoryEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, DirectoryEntry entries[]){
     // Carrega as entradas do diretório do disco para a memória
     Inode *inode = &inodeTable[inodeDir];
-    int maxEntradas = maxEntradasDiretorio(disk);
+    int maxEntries = maxDirEntries(disk);
 
-    inicializarEntradas(entradas, maxEntradas);
+    initEntries(entries, maxEntries);
 
     if(inode->quantBlocks == 0){
         // Diretório vazio, não há blocos alocados
         return 1;
     }
 
-    if(readBlock(disk, inode->blocks[0], entradas, disk->header.blockSize) != OPERATION_OK){
+    if(readBlock(disk, inode->blocks[0], entries, disk->header.blockSize) != OPERATION_OK){
         return 0;
     }
 
@@ -43,23 +43,23 @@ static int carregarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir
     // Retorna 1 se conseguiu carregar, 0 caso contrário
 }
 
-static int salvarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir, Diretorio entradas[]){
+static int saveDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeDir, DirectoryEntry entries[]){
     // Salva as entradas do diretório da memória para o disco
     // é usada sempre que uma entrada é adicionada, removida ou renomeada, pois muda o conteúdo do diretório
     Inode *inode = &inodeTable[inodeDir];
 
     if(inode->quantBlocks == 0){
         // Se não houver blocos alocados para o diretório, aloca um novo bloco
-        uint32_t novoBloco;
+        uint32_t newBlck;
 
-        if(allocateBlock(disk, &novoBloco) != OPERATION_OK){
+        if(allocateBlock(disk, &newBlck) != OPERATION_OK){
             return 0;
         }
 
-        addBlockToInode(inodeTable, inodeDir, novoBloco);
+        addBlockToInode(inodeTable, inodeDir, newBlck);
     }
 
-    if(writeBlock(disk, inode->blocks[0], entradas, disk->header.blockSize) != OPERATION_OK){
+    if(writeBlock(disk, inode->blocks[0], entries, disk->header.blockSize) != OPERATION_OK){
         return 0;
     }
 
@@ -70,436 +70,309 @@ static int salvarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir, 
     return 1;
 }
 
-static int buscarEntrada(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *nome){
+static int searchEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name){
     // Procurar uma entrada pelo nome no diretório especificado pelo inodeDir
-    int maxEntradas = maxEntradasDiretorio(disk);
-    Diretorio *entradas = malloc(disk->header.blockSize);
+    int maxEntries = maxDirEntries(disk);
+    DirectoryEntry *entries = malloc(disk->header.blockSize);
 
-    if(entradas == NULL){
+    if(entries == NULL){
         return -1;
     }
 
-    if(!carregarDiretorio(disk, inodeTable, inodeDir, entradas)){
+    if(!loadDirectoryEntry(disk, inodeTable, inodeDir, entries)){
         // Falha ao carregar o diretório para a memória
-        free(entradas);
+        free(entries);
         return -1;
     }
 
-    for(int i=0; i<maxEntradas; i++){
+    for(int i=0; i<maxEntries; i++){
         // Verifica se a entrada está em uso e se o nome corresponde
         // caso encontre, retorna o inode associado a essa entrada
-        if(entradas[i].usado && strcmp(entradas[i].nome, nome) == 0){
-            int inodeEncontrado = entradas[i].inode;
-            free(entradas);
-            return inodeEncontrado;
+        if(entries[i].used && strcmp(entries[i].name, name) == 0){
+            int inodeFound = entries[i].inode;
+            free(entries);
+            return inodeFound;
         }
     }
 
-    free(entradas);
+    free(entries);
     return -1;
 }
 
-static int adicionarEntrada(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *nome, int inodeNovo, FileType type){
+static int addEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name, int newInode, FileType type){
     // Adiciona uma nova entrada ao diretório especificado pelo inodeDir
-    int maxEntradas = maxEntradasDiretorio(disk);
-    Diretorio *entradas = malloc(disk->header.blockSize);
+    int maxEntries = maxDirEntries(disk);
+    DirectoryEntry *entries = malloc(disk->header.blockSize);
 
-    if(entradas == NULL){
+    if(entries == NULL){
         return 0;
     }
 
-    if(!carregarDiretorio(disk, inodeTable, inodeDir, entradas)){
-        free(entradas);
+    if(!loadDirectoryEntry(disk, inodeTable, inodeDir, entries)){
+        free(entries);
         return 0;
     }
 
-    for(int i=0; i<maxEntradas; i++){
-        if(entradas[i].usado == 0 && strcmp(entradas[i].nome, nome) == 0){
-            free(entradas);
+    for(int i=0; i<maxEntries; i++){
+        if(entries[i].used == 0 && strcmp(entries[i].name, name) == 0){
+            free(entries);
             return 0;
         }
     }
 
     // Procura uma posição vazia para adicionar a nova entrada
-    for(int i=0; i<maxEntradas; i++){
-        if(!entradas[i].usado){
-            strncpy(entradas[i].nome, nome, TAM_NOME-1);
-            entradas[i].nome[TAM_NOME-1] = '\0'; // Garantir terminação nula
-            entradas[i].inode = inodeNovo;
-            entradas[i].type = type;
-            entradas[i].usado = 1;
+    for(int i=0; i<maxEntries; i++){
+        if(!entries[i].used){
+            strncpy(entries[i].name, name, TAM_NOME-1);
+            entries[i].name[TAM_NOME-1] = '\0'; // Garantir terminação nula
+            entries[i].inode = newInode;
+            entries[i].type = type;
+            entries[i].used = 1;
 
             // Salva as alterações no diretório de volta para o disco
-            int resultado = salvarDiretorio(disk, inodeTable, inodeDir, entradas);
+            int result = saveDirectory(disk, inodeTable, inodeDir, entries);
 
-            free(entradas);
-            return resultado;
+            free(entries);
+            return result;
         }
     }
 
-    free(entradas);
+    free(entries);
     return 0;
 }
 
-static int removerEntrada(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *nome){
+static int removeEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name){
     // Remove uma entrada do diretório especificado pelo inodeDir
-    int maxEntradas = maxEntradasDiretorio(disk);
-    Diretorio *entradas = malloc(disk->header.blockSize);
+    int maxEntries = maxDirEntries(disk);
+    DirectoryEntry *entries = malloc(disk->header.blockSize);
 
-    if(entradas == NULL){
+    if(entries == NULL){
         return 0;
     }
 
-    if(!carregarDiretorio(disk, inodeTable, inodeDir, entradas)){
-        free(entradas);
+    if(!loadDirectoryEntry(disk, inodeTable, inodeDir, entries)){
+        free(entries);
         return 0;
     }
 
-    for(int i=0; i<maxEntradas; i++){
-        if(entradas[i].usado && strcmp(entradas[i].nome, nome) == 0){
-            entradas[i].usado = 0; // Marca a entrada como vazia
-            entradas[i].nome[0] = '\0'; // Limpa o nome
-            entradas[i].inode = -1; // Limpa o inode
+    for(int i=0; i<maxEntries; i++){
+        if(entries[i].used && strcmp(entries[i].name, name) == 0){
+            entries[i].used = 0; // Marca a entrada como vazia
+            entries[i].name[0] = '\0'; // Limpa o nome
+            entries[i].inode = -1; // Limpa o inode
 
-            int resultado = salvarDiretorio(disk, inodeTable, inodeDir, entradas);
+            int result = saveDirectory(disk, inodeTable, inodeDir, entries);
 
-            free(entradas);
-            return resultado;
+            free(entries);
+            return result;
         }
     }
 
-    free(entradas);
+    free(entries);
     return 0; // Entrada não encontrada
 }
 
-static int diretorioVazio(VirtualDisk *disk, Inode inodeTable[], int inodeDir){
+static int emptyDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeDir){
     // verifica se o diretório especificado pelo inodeDir está vazio (apenas "." e ".." presentes)
     // logo, se pode ser removido
-    int maxEntradas = maxEntradasDiretorio(disk);
-    Diretorio *entradas = malloc(disk->header.blockSize);
+    int maxEntries = maxDirEntries(disk);
+    DirectoryEntry *entries = malloc(disk->header.blockSize);
 
-    if(entradas == NULL){
+    if(entries == NULL){
         return 0;
     }
 
-    if(!carregarDiretorio(disk, inodeTable, inodeDir, entradas)){
-        free(entradas);
+    if(!loadDirectoryEntry(disk, inodeTable, inodeDir, entries)){
+        free(entries);
         return 0;
     }
 
-    for(int i=0; i<maxEntradas; i++){
-        if(entradas[i].usado){
-            if(strcmp(entradas[i].nome, ".") != 0 && strcmp(entradas[i].nome, "..") != 0){
-                free(entradas);
+    for(int i=0; i<maxEntries; i++){
+        if(entries[i].used){
+            if(strcmp(entries[i].name, ".") != 0 && strcmp(entries[i].name, "..") != 0){
+                free(entries);
                 return 0; // Encontrou uma entrada que não é "." ou ".."
             }
         }
     }
 
-    free(entradas);
+    free(entries);
     return 1; // Diretório está vazio
 }
 
 /* FUÇÕES PRINCIPAIS */
 
-void criarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *nome){
-    if(disk == NULL || inodeTable == NULL || nome == NULL){
-        printf("Erro: parâmetros inválidos.\n");
+void createDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeParent, char *name){
+    if(disk == NULL || inodeTable == NULL || name == NULL){
+        printf("Erro: parametros invalidos\n");
         return;
     }
 
-    if(inodeTable[inodePai].type != DIRECTORY){
-        printf("Erro: inode pai não é um diretório.\n");
+    if(inodeTable[inodeParent].type != DIRECTORY){
+        printf("Erro: inode pai nao e um diretorio\n");
         return;
     }
 
-    if(buscarEntrada(disk, inodeTable, inodePai, nome) != -1){
-        printf("Erro: já existe uma entrada com o nome '%s' no diretório.\n", nome);
+    if(searchEntry(disk, inodeTable, inodeParent, name) != -1){
+        printf("Erro: ja existe uma entrada com o nome '%s' no diretorio\n", name);
         return;
     }
 
-    int novoInode = allocInode(inodeTable, DIRECTORY);
+    int newInode = allocInode(inodeTable, DIRECTORY);
 
-    if(novoInode == -1){
-        printf("Erro: não foi possível alocar um novo inode pois não existe nenhum livre.\n");
+    if(newInode == -1){
+        printf("Erro: nao foi possivel alocar um novo inode\n");
         return;
     }
 
-    if(!adicionarEntrada(disk, inodeTable, novoInode, ".", novoInode, DIRECTORY)){
-        printf("Erro: não foi possível adicionar a entrada '.' no novo diretório.\n");
-        freeInode(inodeTable, novoInode);
+    if(!addEntry(disk, inodeTable, newInode, ".", newInode, DIRECTORY)){
+        printf("Erro: nao foi possivel adicionar a entrada '.'\n");
+        freeInode(inodeTable, newInode);
         return;
     }
 
-    if(!adicionarEntrada(disk, inodeTable, novoInode, "..", inodePai, DIRECTORY)){
-        printf("Erro: não foi possível adicionar a entrada '..' no novo diretório.\n");
-        freeInode(inodeTable, novoInode);
+    if(!addEntry(disk, inodeTable, newInode, "..", inodeParent, DIRECTORY)){
+        printf("Erro: nao foi possivel adicionar a entrada '..'\n");
+        freeInode(inodeTable, newInode);
         return;
     }
 
-    if(!adicionarEntrada(disk, inodeTable, inodePai, nome, novoInode, DIRECTORY)){
-        printf("Erro: não foi possível adicionar a entrada '%s' no diretório pai.\n", nome);
-        freeInode(inodeTable, novoInode);
+    if(!addEntry(disk, inodeTable, inodeParent, name, newInode, DIRECTORY)){
+        printf("Erro: nao foi possivel adicionar a entrada '%s'\n", name);
+        freeInode(inodeTable, newInode);
         return;
     }
 
-    printf("Diretório '%s' criado com sucesso.\n", nome);
+    printf("Diretorio '%s' criado com sucesso\n", name);
 }
 
-void apagarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *nome){
-    if(disk == NULL || inodeTable == NULL || nome == NULL){
-        printf("Erro: parâmetros inválidos.\n");
+void deleteDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeParent, char *name){
+    if(disk == NULL || inodeTable == NULL || name == NULL){
+        printf("Erro: parametros invalidos\n");
         return;
     }
 
-    if(inodeTable[inodePai].type != DIRECTORY){
-        printf("Erro: inode pai não é um diretório.\n");
+    if(inodeTable[inodeParent].type != DIRECTORY){
+        printf("Erro: inode pai nao e um diretorio\n");
         return;
     }
 
-    int inodeRemover = buscarEntrada(disk, inodeTable, inodePai, nome);
+    int inodeRemove = searchEntry(disk, inodeTable, inodeParent, name);
 
-    if(inodeRemover == -1){
-        printf("Erro: diretório '%s' não encontrado no diretório pai.\n", nome);
+    if(inodeRemove == -1){
+        printf("Erro: diretorio '%s' nao encontrado no diretorio pai\n", name);
         return;
     }
 
-    if(inodeTable[inodeRemover].type != DIRECTORY){
-        printf("Erro: a entrada '%s' não é um diretório.\n", nome);
+    if(inodeTable[inodeRemove].type != DIRECTORY){
+        printf("Erro: a entrada '%s' nao e um diretorio\n", name);
         return;
     }
 
-    if(!diretorioVazio(disk, inodeTable, inodeRemover)){
-        printf("Erro: diretório '%s' não está vazio.\n", nome);
+    if(!emptyDirectory(disk, inodeTable, inodeRemove)){
+        printf("Erro: diretorio '%s' nao esta vazio\n", name);
         return;
     }
 
-    if(!removerEntrada(disk, inodeTable, inodePai, nome)){
-        printf("Erro: falha ao remover a entrada '%s' do diretório pai.\n", nome);
+    if(!removeEntry(disk, inodeTable, inodeParent, name)){
+        printf("Erro: falha ao remover a entrada '%s' do diretorio pai\n", name);
         return;
     }
 
-    freeInode(inodeTable, inodeRemover);
-    printf("Diretório '%s' apagado com sucesso.\n", nome);
+    freeInode(inodeTable, inodeRemove);
+    printf("Diretorio '%s' apagado com sucesso\n", name);
 }
 
-void renomearDiretorio(VirtualDisk *disk, Inode inodeTable[],  int inodePai, char *nomeAntigo, char *novoNome){
-    if(disk == NULL || inodeTable == NULL || nomeAntigo == NULL || novoNome == NULL){
-        printf("Erro: parâmetros inválidos.\n");
+void renameDirectory(VirtualDisk *disk, Inode inodeTable[],  int inodeParent, char *oldName, char *newName){
+    if(disk == NULL || inodeTable == NULL || oldName == NULL || newName == NULL){
+        printf("Erro: parametros invalidos\n");
         return;
     }
 
-    if(inodeTable[inodePai].type != DIRECTORY){
-        printf("Erro: inode pai não é um diretório.\n");
+    if(inodeTable[inodeParent].type != DIRECTORY){
+        printf("Erro: inode pai nao e um diretorio\n");
         return;
     }
 
-    if(buscarEntrada(disk, inodeTable, inodePai, novoNome) != -1){
-        printf("Erro: já existe uma entrada com o nome '%s' no diretório.\n", novoNome);
+    if(searchEntry(disk, inodeTable, inodeParent, newName) != -1){
+        printf("Erro: ja existe uma entrada com o nome '%s' no diretorio\n", newName);
         return;
     }
 
-    int maxEntradas = maxEntradasDiretorio(disk);
-    Diretorio *entradas = malloc(disk->header.blockSize);
+    int maxEntries = maxDirEntries(disk);
+    DirectoryEntry *entries = malloc(disk->header.blockSize);
 
-    if(entradas == NULL){
-        printf("Erro: falha ao alocar memória para entradas do diretório.\n");
+    if(entries == NULL){
+        printf("Erro: falha ao alocar memoria para entries do diretorio\n");
         return;
     }
 
-    if(!carregarDiretorio(disk, inodeTable, inodePai, entradas)){
-        printf("Erro: falha ao carregar o diretório.\n");
-        free(entradas);
+    if(!loadDirectoryEntry(disk, inodeTable, inodeParent, entries)){
+        printf("Erro: falha ao carregar o diretorio\n");
+        free(entries);
         return;
     }
 
-    for(int i=0; i<maxEntradas; i++){
-        if(entradas[i].usado && strcmp(entradas[i].nome, nomeAntigo) == 0){
-            if(entradas[i].type != DIRECTORY){
-                printf("Erro: a entrada '%s' não é um diretório.\n", nomeAntigo);
-                free(entradas);
+    for(int i=0; i<maxEntries; i++){
+        if(entries[i].used && strcmp(entries[i].name, oldName) == 0){
+            if(entries[i].type != DIRECTORY){
+                printf("Erro: a entrada '%s' nao e um diretorio\n", oldName);
+                free(entries);
                 return;
             }
 
-            strncpy(entradas[i].nome, novoNome, TAM_NOME-1);
-            entradas[i].nome[TAM_NOME-1] = '\0';
+            strncpy(entries[i].name, newName, TAM_NOME-1);
+            entries[i].name[TAM_NOME-1] = '\0';
 
-            if(!salvarDiretorio(disk, inodeTable, inodePai, entradas)){
-                printf("Erro: falha ao salvar o diretório após renomear.\n");
-                free(entradas);
+            if(!saveDirectory(disk, inodeTable, inodeParent, entries)){
+                printf("Erro: falha ao salvar o diretorio apos renomear\n");
+                free(entries);
                 return;
             }
 
-            printf("Diretório '%s' renomeado para '%s' com sucesso.\n", nomeAntigo, novoNome);
-            free(entradas);
+            printf("Diretorio '%s' renomeado para '%s' com sucesso\n", oldName, newName);
+            free(entries);
             return;
         }
     }
 
-    printf("Erro: diretório '%s' não encontrado no diretório pai.\n", nomeAntigo);
-    free(entradas);
+    printf("Erro: diretorio '%s' nao encontrado no diretorio pai\n", oldName);
+    free(entries);
 }
 
-void listarConteudoDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir){
+void listDirectoryContent(VirtualDisk *disk, Inode inodeTable[], int inodeDir){
     if(disk == NULL || inodeTable == NULL){
-        printf("Erro: parâmetros inválidos.\n");
+        printf("Erro: parametros invalidos\n");
         return;
     }
 
     if(inodeTable[inodeDir].type != DIRECTORY){
-        printf("Erro: inode não é um diretório.\n");
+        printf("Erro: inode nao e um diretorio\n");
         return;
     }
 
-    int maxEntradas = maxEntradasDiretorio(disk);
-    Diretorio *entradas = malloc(disk->header.blockSize);
+    int maxEntries = maxDirEntries(disk);
+    DirectoryEntry *entries = malloc(disk->header.blockSize);
 
-    if(entradas == NULL){
-        printf("Erro: falha ao alocar memória para entradas do diretório.\n");
+    if(entries == NULL){
+        printf("Erro: falha ao alocar memoria para entries do diretorio\n");
         return;
     }
 
-    if(!carregarDiretorio(disk, inodeTable, inodeDir, entradas)){
-        printf("Erro: falha ao carregar o diretório.\n");
-        free(entradas);
+    if(!loadDirectoryEntry(disk, inodeTable, inodeDir, entries)){
+        printf("Erro: falha ao carregar o diretorio\n");
+        free(entries);
         return;
     }
 
-    printf("Conteúdo do diretório (inode %d):\n", inodeDir);
-    for(int i=0; i<maxEntradas; i++){
-        if(entradas[i].usado){
-            printf("Nome: %s | Inode: %d | Tipo: %s\n", entradas[i].nome, entradas[i].inode,
-                   (entradas[i].type == DIRECTORY) ? "Diretório" : "Arquivo");
+    printf("Conteudo do diretorio (inode %d):\n", inodeDir);
+    for(int i=0; i<maxEntries; i++){
+        if(entries[i].used){
+            printf("Nome: %s | Inode: %d | Tipo: %s\n", entries[i].name, entries[i].inode,
+                   (entries[i].type == DIRECTORY) ? "Diretorio" : "Arquivo");
         }
     }
 
-    free(entradas);
+    free(entries);
 }
 
-/* TESTES UNITÁRIOS */
-
-static void imprimirSeparador(char *titulo) {
-    printf("\n==============================\n");
-    printf("%s\n", titulo);
-    printf("==============================\n");
-}
-
-int main() {
-    VirtualDisk disk;
-    Inode inodeTable[MAX_INODES];
-
-    initializeInode(inodeTable);
-
-    if (createVirtualDisk("disco_teste.bin", 1024 * 1024, 4096) != OPERATION_OK) {
-        printf("ERRO: nao foi possivel criar o disco virtual.\n");
-        return 1;
-    }
-
-    if (openVirtualDisk(&disk, "disco_teste.bin") != OPERATION_OK) {
-        printf("ERRO: nao foi possivel abrir o disco virtual.\n");
-        return 1;
-    }
-
-    int raiz = allocInode(inodeTable, DIRECTORY);
-
-    if (raiz == -1) {
-        printf("ERRO: nao foi possivel criar o inode raiz.\n");
-        closeVirtualDisk(&disk);
-        return 1;
-    }
-
-    imprimirSeparador("TESTE 1: criar diretorios na raiz");
-
-    criarDiretorio(&disk, inodeTable, raiz, "docs");
-    criarDiretorio(&disk, inodeTable, raiz, "imagens");
-    criarDiretorio(&disk, inodeTable, raiz, "trabalhos");
-
-    printf("\nResultado esperado:\n");
-    printf("Diretorio 'docs' criado com sucesso.\n");
-    printf("Diretorio 'imagens' criado com sucesso.\n");
-    printf("Diretorio 'trabalhos' criado com sucesso.\n");
-
-    imprimirSeparador("TESTE 2: listar conteudo da raiz");
-
-    listarConteudoDiretorio(&disk, inodeTable, raiz);
-
-    printf("\nResultado esperado na listagem:\n");
-    printf("docs       DIR\n");
-    printf("imagens    DIR\n");
-    printf("trabalhos  DIR\n");
-
-    imprimirSeparador("TESTE 3: tentar criar diretorio repetido");
-
-    criarDiretorio(&disk, inodeTable, raiz, "docs");
-
-    printf("\nResultado esperado:\n");
-    printf("Erro: ja existe uma entrada com esse nome.\n");
-
-    imprimirSeparador("TESTE 4: renomear diretorio");
-
-    renomearDiretorio(&disk, inodeTable, raiz, "docs", "documentos");
-
-    printf("\nResultado esperado:\n");
-    printf("Diretorio renomeado de 'docs' para 'documentos'.\n");
-
-    printf("\nListagem depois de renomear:\n");
-    listarConteudoDiretorio(&disk, inodeTable, raiz);
-
-    printf("\nResultado esperado na listagem:\n");
-    printf("documentos DIR\n");
-    printf("imagens    DIR\n");
-    printf("trabalhos  DIR\n");
-    printf("E o nome 'docs' nao deve mais aparecer.\n");
-
-    imprimirSeparador("TESTE 5: tentar renomear para nome ja existente");
-
-    renomearDiretorio(&disk, inodeTable, raiz, "imagens", "trabalhos");
-
-    printf("\nResultado esperado:\n");
-    printf("Erro: ja existe uma entrada com o novo nome.\n");
-
-    imprimirSeparador("TESTE 6: apagar diretorio vazio");
-
-    apagarDiretorio(&disk, inodeTable, raiz, "imagens");
-
-    printf("\nResultado esperado:\n");
-    printf("Diretorio 'imagens' apagado com sucesso.\n");
-
-    printf("\nListagem depois de apagar:\n");
-    listarConteudoDiretorio(&disk, inodeTable, raiz);
-
-    printf("\nResultado esperado na listagem:\n");
-    printf("documentos DIR\n");
-    printf("trabalhos  DIR\n");
-    printf("E o nome 'imagens' nao deve mais aparecer.\n");
-
-    imprimirSeparador("TESTE 7: tentar apagar diretorio inexistente");
-
-    apagarDiretorio(&disk, inodeTable, raiz, "naoExiste");
-
-    printf("\nResultado esperado:\n");
-    printf("Erro: diretorio nao encontrado.\n");
-
-    imprimirSeparador("TESTE 8: criar subdiretorio e tentar apagar pai nao vazio");
-
-    criarDiretorio(&disk, inodeTable, raiz, "projetos");
-
-    int inodeProjetos = buscarEntrada(&disk, inodeTable, raiz, "projetos");
-
-    if (inodeProjetos != -1) {
-        criarDiretorio(&disk, inodeTable, inodeProjetos, "tp2");
-    }
-
-    apagarDiretorio(&disk, inodeTable, raiz, "projetos");
-
-    printf("\nResultado esperado:\n");
-    printf("Diretorio 'projetos' criado com sucesso.\n");
-    printf("Diretorio 'tp2' criado com sucesso.\n");
-    printf("Erro: diretorio nao esta vazio.\n");
-
-    imprimirSeparador("FIM DOS TESTES");
-
-    closeVirtualDisk(&disk);
-
-    return 0;
-}

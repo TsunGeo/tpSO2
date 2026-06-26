@@ -5,16 +5,16 @@
 #define TAM_NOME 255
 
 typedef struct{
-    char nome[TAM_NOME]; // nome do arquivo ou diretório
+    char name[TAM_NOME]; // nome do arquivo ou diretório
     int inode; // inode ligado a esse nome
     FileType type; // FILE ou DIRECTORY
-    int usado; // 0 = posição vazia, 1 = posição ocupada
-} Diretorio;
+    int used; // 0 = posição vazia, 1 = posição ocupada
+} DirectoryEntry;
 
-void criarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *nome);
-void apagarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *nome);
-void renomearDiretorio(VirtualDisk *disk, Inode inodeTable[],  int inodePai, char *nomeAntigo, char *novoNome);
-void listarConteudoDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir);
+void createDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeParent, char *name);
+void deleteDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeParent, char *name);
+void renameDirectory(VirtualDisk *disk, Inode inodeTable[],  int inodeParent, char *oldName, char *newName);
+void listDirectoryContent(VirtualDisk *disk, Inode inodeTable[], int inodeDir);
 
 
 #endif // DIRETORIO_H
