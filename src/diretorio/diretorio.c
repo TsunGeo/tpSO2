@@ -332,6 +332,7 @@ void renomearDiretorio(VirtualDisk *disk, Inode inodeTable[],  int inodePai, cha
 
             printf("Diretório '%s' renomeado para '%s' com sucesso.\n", nomeAntigo, novoNome);
             free(entradas);
+            return;
         }
     }
 
