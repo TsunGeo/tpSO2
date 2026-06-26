@@ -34,7 +34,7 @@ static int carregarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodeDir
         return 1;
     }
 
-    if(read(disk, inode->blocks[0], entradas, disk->header.blockSize) != OPERATION_OK){
+    if(readBlock(disk, inode->blocks[0], entradas, disk->header.blockSize) != OPERATION_OK){
         return 0;
     }
 
@@ -218,7 +218,7 @@ void criarDiretorio(VirtualDisk *disk, Inode inodeTable[], int inodePai, char *n
         return;
     }
 
-    int novoInode = allocateInode(inodeTable, DIRECTORY);
+    int novoInode = allocInode(inodeTable, DIRECTORY);
 
     if(novoInode == -1){
         printf("Erro: não foi possível alocar um novo inode pois não existe nenhum livre.\n");
