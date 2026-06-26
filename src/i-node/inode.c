@@ -68,7 +68,7 @@ int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex
 
     for(int i = 0; i < inode->quantBlocks; i++){
         if(inode->blocks[i] == blockIndex){
-            for(int j = i; j < inode < inode->quantBlocks - 1; j++){
+            for(int j = i; j < inode->quantBlocks - 1; j++){
                 inode->blocks[j] = inode->blocks[j + 1]; // Arrasta os blocos uma posição para trás a cada iteração.
             }
 
@@ -180,7 +180,7 @@ void iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const
 
         //Aloca Bloco no disco
         if(allocateBlock(disk, &blockIndex) != OPERATION_OK){
-            return 0;
+            return;
         }
 
         // Atribui um i-node ao bloco
