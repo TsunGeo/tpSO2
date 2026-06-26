@@ -12,7 +12,7 @@
 
 // Tipos de arquivos suportados pelo simulador
 typedef enum FileType{
-    FILE,
+    TYPE_FILE,
     DIRECTORY
 }FileType;
 
