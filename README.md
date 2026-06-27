@@ -66,7 +66,7 @@ Além desses módulos, o projeto utiliza um arquivo de configuração compartilh
 
 <p>Lucas Garcia Ferreira Franco Fonseca</p>
 
-<p>Nome do Integrante 3</p>
+<p>Francyelle de Oliveira Serrano</p>
 
 <p>Nome do Integrante 4</p>
 
