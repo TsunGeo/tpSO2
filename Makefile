@@ -9,7 +9,8 @@ SOURCES = \
 	src/disco/disco.c \
 	src/i-node/inode.c \
 	src/diretorio/diretorio.c \
-	src/arquivo/arquivo.c
+	src/arquivo/arquivo.c \
+	src/importacao/importacao.c
 
 OBJECTS = $(SOURCES:.c=.o)
 

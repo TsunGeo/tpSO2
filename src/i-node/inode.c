@@ -1,4 +1,5 @@
 #include "./inode.h"
+#include <string.h>
 
 /**
  * 
@@ -134,6 +135,13 @@ void iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* 
     char* data = buffer;
     uint32_t offset = 0;
 
+    //Aloca um bloco temporário para receber os dados
+    void *tempBlock = malloc(disk->header.blockSize);
+    if (tempBlock == NULL) {
+        printf("Erro: falha ao alocar memoria temporaria para leitura de bloco\n");
+        return;
+    }
+
     /**
      * A cada iteração a função percorre os blocos no disco onde o dado está salvo, lendo-o completamente, a menos que a quantidade de bytes restante
      * não ultrapasse o tamanho do bloco. Nesse caso a leitura para assim que a quantidade de bytes se esgota. Dessa forma, o buffer é preenchido corretamente.
@@ -149,10 +157,17 @@ void iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* 
             }
         }
 
-        readBlock(disk, inode->blocks[i], (data+offset), bytesToRead);
+        // Realiza a leitura do bloco de disco inteiro e copia para o buffer apenas a quantidade necessaria
+        if (readBlock(disk, inode->blocks[i], tempBlock, disk->header.blockSize) == OPERATION_OK) {
+            memcpy(data + offset, tempBlock, bytesToRead);
+        } else {
+            printf("Erro: falha ao ler bloco %u do disco\n", inode->blocks[i]);
+        }
         offset += bytesToRead;
     }
 
+    //Libera memória alocada
+    free(tempBlock);
     time(&inode->accessDate);
 }
 

@@ -8,6 +8,7 @@
 #include "i-node/inode.h"
 #include "diretorio/diretorio.h"
 #include "arquivo/arquivo.h"
+#include "importacao/importacao.h"
 
 
 static void printHelp(void) {
@@ -153,6 +154,8 @@ int main(int argc, char *argv[]) {
     /* Remove */
 
     deleteFile(&disk, inodeTable, backup, "arquivo.txt");
+
+   void testeImportacao(VirtualDisk *disk, Inode inodeTable[], int rootInode);
 
     printf("\n========== FIM DOS TESTES ==========\n");
 
