@@ -1,8 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
 #include "diretorio.h"
 
 /* FUNÇÕES AUXILIARES */
@@ -22,7 +17,7 @@ static void initEntries(DirectoryEntry entries[], int maxEntries){
     }
 }
 
-static int loadDirectoryEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, DirectoryEntry entries[]){
+int loadDirectoryEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, DirectoryEntry entries[]){
     // Carrega as entradas do diretório do disco para a memória
     Inode *inode = &inodeTable[inodeDir];
     int maxEntries = maxDirEntries(disk);
@@ -43,7 +38,7 @@ static int loadDirectoryEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDi
     // Retorna 1 se conseguiu carregar, 0 caso contrário
 }
 
-static int saveDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeDir, DirectoryEntry entries[]){
+int saveDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeDir, DirectoryEntry entries[]){
     // Salva as entradas do diretório da memória para o disco
     // é usada sempre que uma entrada é adicionada, removida ou renomeada, pois muda o conteúdo do diretório
     Inode *inode = &inodeTable[inodeDir];
@@ -70,7 +65,7 @@ static int saveDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeDir, Di
     return 1;
 }
 
-static int searchEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name){
+int searchEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name){
     // Procurar uma entrada pelo nome no diretório especificado pelo inodeDir
     int maxEntries = maxDirEntries(disk);
     DirectoryEntry *entries = malloc(disk->header.blockSize);
@@ -99,7 +94,7 @@ static int searchEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char
     return -1;
 }
 
-static int addEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name, int newInode, FileType type){
+int addEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name, int newInode, FileType type){
     // Adiciona uma nova entrada ao diretório especificado pelo inodeDir
     int maxEntries = maxDirEntries(disk);
     DirectoryEntry *entries = malloc(disk->header.blockSize);
@@ -141,7 +136,7 @@ static int addEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *n
     return 0;
 }
 
-static int removeEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name){
+int removeEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name){
     // Remove uma entrada do diretório especificado pelo inodeDir
     int maxEntries = maxDirEntries(disk);
     DirectoryEntry *entries = malloc(disk->header.blockSize);
