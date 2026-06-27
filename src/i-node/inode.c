@@ -28,11 +28,21 @@ void initializeInode(Inode* iNodeTable){
 int allocInode(Inode iNodeTable[], FileType type){ //FIXME: Check if the vector parameter is equal to pass the pointer of the first position
     for(int i = 0; i < MAX_INODES; i++){
         if(!iNodeTable[i].isBeingUsed){ // Not being used
+            iNodeTable[i].iNodeID = i; // MUDANÇA
             iNodeTable[i].isBeingUsed = 1; //Now is being used
+
 
             iNodeTable[i].size = 0;
             iNodeTable[i].type = type;
+
+            iNodeTable[i].quantBlocks = 0; // MUDANÇA
+            for(int j = 0; j < DIRECT_POINTERS; j++){
+                iNodeTable[i].blocks[j] = (uint32_t)-1; // MUDANÇA
+            }
+
             time(&iNodeTable[i].creationDate);
+            iNodeTable[i].modificationDate = iNodeTable[i].creationDate; // MUDANÇA
+            iNodeTable[i].accessDate = iNodeTable[i].creationDate; // MUDANÇA
 
             return i;
         }
@@ -68,7 +78,7 @@ int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex
 
     for(int i = 0; i < inode->quantBlocks; i++){
         if(inode->blocks[i] == blockIndex){
-            for(int j = i; j < inode < inode->quantBlocks - 1; j++){
+            for(int j = i; j < inode->quantBlocks - 1; j++){
                 inode->blocks[j] = inode->blocks[j + 1]; // Arrasta os blocos uma posição para trás a cada iteração.
             }
 
@@ -180,7 +190,7 @@ void iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const
 
         //Aloca Bloco no disco
         if(allocateBlock(disk, &blockIndex) != OPERATION_OK){
-            return 0;
+            return;
         }
 
         // Atribui um i-node ao bloco
