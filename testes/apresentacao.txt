@@ -1,0 +1,25 @@
+verbose on
+info
+
+mkdir /docs
+mkdir /backup
+
+touch /docs/relatorio.txt
+write /docs/relatorio.txt "Arquivo criado durante execucao por arquivo."
+
+ls /
+ls /docs
+
+cat /docs/relatorio.txt
+meta /docs/relatorio.txt
+
+rename /docs/relatorio.txt final.txt
+mv /docs/final.txt /backup
+
+ls /docs
+ls /backup
+
+cat /backup/final.txt
+rm /backup/final.txt
+rmdir /backup
+ls /
