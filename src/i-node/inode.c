@@ -58,7 +58,17 @@ int allocInode(Inode iNodeTable[], FileType type){ //FIXME: Check if the vector 
  * @param blockIndex Índice do bloco a ser alocado
  */
 int addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex){
-    Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+    Inode* inode;
+
+    if(iNodeTable == NULL || iNodeIndex < 0 || iNodeIndex >= MAX_INODES){
+        return 0;
+    }
+
+    inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+
+    if(!inode->isBeingUsed){
+        return 0;
+    }
 
     if(inode->quantBlocks >= DIRECT_POINTERS){
         return 0;
@@ -81,7 +91,13 @@ int addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex){
  * @returns 0 case does not found block.
  */
 int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex){
-    Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+    Inode* inode;
+
+    if(iNodeTable == NULL || iNodeIndex < 0 || iNodeIndex >= MAX_INODES){
+        return 0;
+    }
+
+    inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
 
     for(int i = 0; i < inode->quantBlocks; i++){
         if(inode->blocks[i] == blockIndex){
@@ -92,6 +108,7 @@ int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex
             time(&inode->modificationDate);
 
             inode->quantBlocks--;
+            inode->blocks[inode->quantBlocks] = (uint32_t)-1;
 
             return 1; // success
         }
@@ -110,7 +127,13 @@ int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex
  * @returns
  */
 int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int directPointerIndex, uint32_t *blockIndex){
-    Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+    Inode* inode;
+
+    if(iNodeTable == NULL || blockIndex == NULL || iNodeIndex < 0 || iNodeIndex >= MAX_INODES){
+        return 0;
+    }
+
+    inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
 
     if(directPointerIndex < 0 || directPointerIndex >= inode->quantBlocks){ // Valor inválido 
         return 0;
@@ -120,6 +143,20 @@ int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int directPointerIndex
     time(&inode->accessDate);
 
     return 1;
+}
+
+static void rollbackNewBlocks(VirtualDisk* disk, Inode* inode, int initialQuantBlocks){
+    while(inode->quantBlocks > initialQuantBlocks){
+        uint32_t blockIndex;
+
+        inode->quantBlocks--;
+        blockIndex = inode->blocks[inode->quantBlocks];
+        inode->blocks[inode->quantBlocks] = (uint32_t)-1;
+
+        if(blockIndex != (uint32_t)-1){
+            freeBlock(disk, blockIndex);
+        }
+    }
 }
 
 /**
@@ -132,10 +169,20 @@ int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int directPointerIndex
  * @returns 0 caso a operação falhe.
  */
 int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* buffer){
-    Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+    Inode* inode;
 
     char* data = buffer;
     uint32_t offset = 0;
+
+    if(disk == NULL || iNodeTable == NULL || buffer == NULL || iNodeIndex < 0 || iNodeIndex >= MAX_INODES){
+        return 0;
+    }
+
+    inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+
+    if(!inode->isBeingUsed){
+        return 0;
+    }
 
     //Aloca um bloco temporário para receber os dados
     void *tempBlock = malloc(disk->header.blockSize);
@@ -148,21 +195,22 @@ int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* b
      * A cada iteração a função percorre os blocos no disco onde o dado está salvo, lendo-o completamente, a menos que a quantidade de bytes restante
      * não ultrapasse o tamanho do bloco. Nesse caso a leitura para assim que a quantidade de bytes se esgota. Dessa forma, o buffer é preenchido corretamente.
      */
-    for(int i = 0; i < inode->quantBlocks; i++){
-        uint32_t bytesToRead = disk->header.blockSize;
+    for(int i = 0; i < inode->quantBlocks && offset < (uint32_t)inode->size; i++){
+        uint32_t remaining = (uint32_t)inode->size - offset;
+        uint32_t bytesToRead = remaining > disk->header.blockSize ? disk->header.blockSize : remaining;
 
-        if(i == inode->quantBlocks - 1){
-            uint32_t remaining = inode->size - offset;
-
-            if(remaining < bytesToRead){
-                bytesToRead = remaining;
-            }
-        }
-
-        if(readBlock(disk, inode->blocks[i], (data+offset), bytesToRead) == OPERATION_ERROR){
+        if(readBlock(disk, inode->blocks[i], tempBlock, disk->header.blockSize) == OPERATION_ERROR){
+            free(tempBlock);
             return 0;
         }
+
+        memcpy(data + offset, tempBlock, bytesToRead);
         offset += bytesToRead;
+    }
+
+    if(offset < (uint32_t)inode->size){
+        free(tempBlock);
+        return 0;
     }
 
     //Libera memória alocada
@@ -183,11 +231,26 @@ int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* b
  * @returns 0 caso a operação falhe.
  */
 int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const void *buffer, uint32_t size){
-    Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+    Inode* inode;
 
     const char *data = buffer;
     uint32_t remaining = size;
     uint32_t offset = 0;
+    int initialQuantBlocks;
+    int initialSize;
+
+    if(disk == NULL || iNodeTable == NULL || buffer == NULL || iNodeIndex < 0 || iNodeIndex >= MAX_INODES){
+        return 0;
+    }
+
+    inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+
+    if(!inode->isBeingUsed){
+        return 0;
+    }
+
+    initialQuantBlocks = inode->quantBlocks;
+    initialSize = inode->size;
 
     
     /**
@@ -207,11 +270,16 @@ int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const 
 
         //Aloca Bloco no disco
         if(allocateBlock(disk, &blockIndex) != OPERATION_OK){
+            rollbackNewBlocks(disk, inode, initialQuantBlocks);
+            inode->size = initialSize;
             return 0;
         }
 
         // Atribui um i-node ao bloco
         if(!addBlockToInode(iNodeTable, iNodeIndex, blockIndex)){
+            freeBlock(disk, blockIndex);
+            rollbackNewBlocks(disk, inode, initialQuantBlocks);
+            inode->size = initialSize;
             return 0;
         }
 
@@ -219,6 +287,8 @@ int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const 
         uint32_t bytesToWrite = remaining > disk->header.blockSize ? disk->header.blockSize : remaining;
 
         if(writeBlock(disk, blockIndex, (data+offset), bytesToWrite) == OPERATION_ERROR){
+            rollbackNewBlocks(disk, inode, initialQuantBlocks);
+            inode->size = initialSize;
             return 0;
         }
 
@@ -272,7 +342,7 @@ static void printInode(Inode iNode){
     
     printf("\tPonteiros diretos:\n");
     for(int j = 0; j < DIRECT_POINTERS; j++){
-        printf("\t\tIndice do bloco %d: \n", iNode.blocks[j]);
+        printf("\t\tIndice do bloco %u: \n", iNode.blocks[j]);
     }
 }
 
@@ -297,6 +367,10 @@ void printInodeTableRelatory(Inode iNodeTable[]){
  */
 int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index){
 
+    if(iNodeTable == NULL || disk == NULL || index < 0 || index >= MAX_INODES){
+        return 0;
+    }
+
     if(!iNodeTable[index].isBeingUsed){
         return 0;
     }
@@ -308,6 +382,7 @@ int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index){
             if(freeBlock(disk, blockIndex) == OPERATION_ERROR){
                 return 0;
             }
+            iNodeTable[index].blocks[i] = (uint32_t)-1;
         }
     }
 

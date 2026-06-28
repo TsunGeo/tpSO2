@@ -227,6 +227,7 @@ void writeFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *nam
     }
 
     inodeTable[inodeFile].quantBlocks = 0;
+    inodeTable[inodeFile].size = 0;
 
     if (iNodeWriteData(disk, inodeTable, inodeFile, buffer, size)) {
         printf("Dados gravados com sucesso no arquivo '%s'\n", name);
@@ -258,8 +259,11 @@ void readFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *name
         return;
     }
 
-    iNodeReadData(disk, inodeTable, inodeFile, buffer);
-    printf("Arquivo '%s' lido com sucesso\n", name);
+    if (iNodeReadData(disk, inodeTable, inodeFile, buffer)) {
+        printf("Arquivo '%s' lido com sucesso\n", name);
+    } else {
+        printf("Erro: nao foi possivel ler o arquivo '%s'\n", name);
+    }
 }
 
 void displayFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *name){
@@ -287,7 +291,11 @@ void displayFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *n
         return;
     }
     
-    iNodeReadData(disk, inodeTable, inodeFile, buffer);
+    if (!iNodeReadData(disk, inodeTable, inodeFile, buffer)) {
+        printf("Erro: nao foi possivel ler o arquivo '%s'\n", name);
+        free(buffer);
+        return;
+    }
 
     buffer[inodeTable[inodeFile].size] = '\0';
 

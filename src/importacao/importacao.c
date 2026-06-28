@@ -81,8 +81,12 @@ int importRealFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, const
     }
 
     // Escrever os dados no arquivo simulado
-    iNodeWriteData(disk, inodeTable, newInode, buffer, (uint32_t)st.st_size);
-    inodeTable[newInode].size = (uint32_t)st.st_size;
+    if (!iNodeWriteData(disk, inodeTable, newInode, buffer, (uint32_t)st.st_size)) {
+        printf("Erro: falha ao gravar o conteudo importado no disco simulado.\n");
+        deleteFile(disk, inodeTable, parentInode, (char *)simulatedFileName);
+        free(buffer);
+        return OPERATION_ERROR;
+    }
 
     // Sobrescrever as datas do Inode simulado com os metadados do arquivo real obtidos via stat
     inodeTable[newInode].modificationDate = st.st_mtime;

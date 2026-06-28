@@ -42,8 +42,6 @@ int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int directPointerIndex
 int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* buffer);
 int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const void* buffer, uint32_t size);
 
-static void printDate(time_t date);
-static void printInode(Inode iNode);
 void printInodeTableRelatory(Inode iNodeTable[]);
 
 int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index);

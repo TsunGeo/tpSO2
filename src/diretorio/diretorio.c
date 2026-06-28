@@ -51,7 +51,10 @@ int saveDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeDir, Directory
             return 0;
         }
 
-        addBlockToInode(inodeTable, inodeDir, newBlck);
+        if(!addBlockToInode(inodeTable, inodeDir, newBlck)){
+            freeBlock(disk, newBlck);
+            return 0;
+        }
     }
 
     if(writeBlock(disk, inode->blocks[0], entries, disk->header.blockSize) != OPERATION_OK){
@@ -109,7 +112,7 @@ int addEntry(VirtualDisk *disk, Inode inodeTable[], int inodeDir, char *name, in
     }
 
     for(int i=0; i<maxEntries; i++){
-        if(entries[i].used == 0 && strcmp(entries[i].name, name) == 0){
+        if(entries[i].used && strcmp(entries[i].name, name) == 0){
             free(entries);
             return 0;
         }
