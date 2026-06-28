@@ -296,12 +296,27 @@ void printInodeTableRelatory(Inode iNodeTable[]){
  * @returns 0 Caso a operação tenha falhado.
  */
 int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index){
-    iNodeTable[index].isBeingUsed = 0;
 
-    for(int i = 0; i < DIRECT_POINTERS; i++){
-        if(freeBlock(disk, (uint32_t)i) == OPERATION_ERROR){
-            return 0;
+    if(!iNodeTable[index].isBeingUsed){
+        return 0;
+    }
+
+    for(int i=0; i < iNodeTable[index].quantBlocks; i++){
+        uint32_t blockIndex = iNodeTable[index].blocks[i];
+
+        if(blockIndex != (uint32_t)-1){
+            if(freeBlock(disk, blockIndex) == OPERATION_ERROR){
+                return 0;
+            }
         }
+    }
+
+    iNodeTable[index].isBeingUsed = 0;
+    iNodeTable[index].quantBlocks = 0;
+    iNodeTable[index].size = 0;
+
+    for(int i=0; i < DIRECT_POINTERS; i++){
+        iNodeTable[index].blocks[i] = (uint32_t)-1;
     }
 
     return 1;

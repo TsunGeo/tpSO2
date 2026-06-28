@@ -34,7 +34,7 @@ void createFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *na
     if (!addEntry(disk, inodeTable, parentInode, name, newInode,TYPE_FILE))
     {
         printf("Erro: Nao foi possivel criar o arquivo '%s'\n", name);
-        freeInode(inodeTable, newInode);
+        freeInode(inodeTable, disk, newInode);
         return;
     }
 
@@ -85,7 +85,7 @@ void deleteFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *na
         return;
     }
 
-    freeInode(inodeTable, inodeRemove);
+    freeInode(inodeTable, disk, inodeRemove);
 
     printf("Arquivo '%s' removido com sucesso\n", name);
 }

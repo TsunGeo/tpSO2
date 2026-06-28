@@ -222,19 +222,19 @@ void createDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeParent, cha
 
     if(!addEntry(disk, inodeTable, newInode, ".", newInode, DIRECTORY)){
         printf("Erro: nao foi possivel adicionar a entrada '.'\n");
-        freeInode(inodeTable, newInode);
+        freeInode(inodeTable, disk, newInode);
         return;
     }
 
     if(!addEntry(disk, inodeTable, newInode, "..", inodeParent, DIRECTORY)){
         printf("Erro: nao foi possivel adicionar a entrada '..'\n");
-        freeInode(inodeTable, newInode);
+        freeInode(inodeTable, disk, newInode);
         return;
     }
 
     if(!addEntry(disk, inodeTable, inodeParent, name, newInode, DIRECTORY)){
         printf("Erro: nao foi possivel adicionar a entrada '%s'\n", name);
-        freeInode(inodeTable, newInode);
+        freeInode(inodeTable, disk, newInode);
         return;
     }
 
@@ -274,7 +274,7 @@ void deleteDirectory(VirtualDisk *disk, Inode inodeTable[], int inodeParent, cha
         return;
     }
 
-    freeInode(inodeTable, inodeRemove);
+    freeInode(inodeTable, disk, inodeRemove);
     printf("Diretorio '%s' apagado com sucesso\n", name);
 }
 
@@ -370,4 +370,3 @@ void listDirectoryContent(VirtualDisk *disk, Inode inodeTable[], int inodeDir){
 
     free(entries);
 }
-
