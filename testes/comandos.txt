@@ -1,7 +1,16 @@
-init disco_simulado.bin 65536 512
-info disco_simulado.bin
-alloc disco_simulado.bin
-alloc disco_simulado.bin
-info disco_simulado.bin
-free disco_simulado.bin 0
-info disco_simulado.bin
+verbose off
+info
+mkdir /docs
+mkdir /backup
+ls /
+touch /docs/anotacoes.txt
+write /docs/anotacoes.txt "Texto gravado dentro de um arquivo simulado."
+cat /docs/anotacoes.txt
+rename /docs/anotacoes.txt resumo.txt
+mv /docs/resumo.txt /backup
+ls /docs
+ls /backup
+meta /backup/resumo.txt
+rm /backup/resumo.txt
+rmdir /backup
+ls /

@@ -1,4 +1,5 @@
 #include "./inode.h"
+#include <string.h>
 
 /**
  * @param iNodeTable Ponteiro para tabela de i-nodes.
@@ -31,11 +32,21 @@ Inode* initializeInode(Inode* iNodeTable){
 int allocInode(Inode iNodeTable[], FileType type){ //FIXME: Check if the vector parameter is equal to pass the pointer of the first position
     for(int i = 0; i < MAX_INODES; i++){
         if(!iNodeTable[i].isBeingUsed){ // Not being used
+            iNodeTable[i].iNodeID = i; // MUDANÇA
             iNodeTable[i].isBeingUsed = 1; //Now is being used
+
 
             iNodeTable[i].size = 0;
             iNodeTable[i].type = type;
+
+            iNodeTable[i].quantBlocks = 0; // MUDANÇA
+            for(int j = 0; j < DIRECT_POINTERS; j++){
+                iNodeTable[i].blocks[j] = (uint32_t)-1; // MUDANÇA
+            }
+
             time(&iNodeTable[i].creationDate);
+            iNodeTable[i].modificationDate = iNodeTable[i].creationDate; // MUDANÇA
+            iNodeTable[i].accessDate = iNodeTable[i].creationDate; // MUDANÇA
 
             return i;
         }
@@ -130,6 +141,13 @@ int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* b
     char* data = buffer;
     uint32_t offset = 0;
 
+    //Aloca um bloco temporário para receber os dados
+    void *tempBlock = malloc(disk->header.blockSize);
+    if (tempBlock == NULL) {
+        printf("Erro: falha ao alocar memoria temporaria para leitura de bloco\n");
+        return;
+    }
+
     /**
      * A cada iteração a função percorre os blocos no disco onde o dado está salvo, lendo-o completamente, a menos que a quantidade de bytes restante
      * não ultrapasse o tamanho do bloco. Nesse caso a leitura para assim que a quantidade de bytes se esgota. Dessa forma, o buffer é preenchido corretamente.
@@ -151,6 +169,8 @@ int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* b
         offset += bytesToRead;
     }
 
+    //Libera memória alocada
+    free(tempBlock);
     time(&inode->accessDate);
 
     return 1;
@@ -191,7 +211,7 @@ int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const 
 
         //Aloca Bloco no disco
         if(allocateBlock(disk, &blockIndex) != OPERATION_OK){
-            return 0;
+            return;
         }
 
         // Atribui um i-node ao bloco
