@@ -4,9 +4,7 @@
 /**
  * @param iNodeTable Ponteiro para tabela de i-nodes.
  */
-Inode* initializeInode(Inode* iNodeTable){
-    iNodeTable = (Inode*)malloc(sizeof(Inode) * MAX_INODES);
-
+void initializeInode(Inode* iNodeTable){
     for(int i = 0; i < MAX_INODES; i++){
         iNodeTable[i].iNodeID = i+1;
         iNodeTable[i].isBeingUsed = 0;
@@ -18,8 +16,6 @@ Inode* initializeInode(Inode* iNodeTable){
                                                     // cada posição do vetor.
         }
     }
-
-    return iNodeTable;
 }
 
 /**
@@ -316,8 +312,10 @@ void printInodeTableRelatory(Inode iNodeTable[]){
 // Remova o comentário para executar o teste completo
 /*
 int main(){
-    Inode* iNodeTable = initializeInode(iNodeTable);
+    Inode iNodeTable[MAX_INODES];
     VirtualDisk disk;
+    
+    initializeInode(iNodeTable);
 
     if(createVirtualDisk("teste.disk", 1024 * 1024, 512) == OPERATION_ERROR){
         printf("Erro ao criar disco.\n");
