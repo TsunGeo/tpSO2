@@ -1,12 +1,13 @@
 #include "./inode.h"
 
 /**
- * 
+ * @param iNodeTable Ponteiro para tabela de i-nodes.
  */
-void initializeInode(Inode* iNodeTable){
+Inode* initializeInode(Inode* iNodeTable){
     iNodeTable = (Inode*)malloc(sizeof(Inode) * MAX_INODES);
 
     for(int i = 0; i < MAX_INODES; i++){
+        iNodeTable[i].iNodeID = i+1;
         iNodeTable[i].isBeingUsed = 0;
         iNodeTable[i].quantBlocks = 0;
         
@@ -16,11 +17,13 @@ void initializeInode(Inode* iNodeTable){
                                                     // cada posição do vetor.
         }
     }
+
+    return iNodeTable;
 }
 
 /**
  * 
- * @param iNodeTable Target i-node table that the i-node will be allocated
+ * @param iNodeTable Tabela de i-nodes que abrigará o i-node alocado
  * @param FileType type of the iNode TODO: describe it better
  * 
  * @returns Index of the i-node alocated in the i-node Table
@@ -47,13 +50,19 @@ int allocInode(Inode iNodeTable[], FileType type){ //FIXME: Check if the vector 
  * @param iNodeIndex
  * @param blockIndex
  */
-void addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex){
+int addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex){
     Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
+
+    if(inode->quantBlocks >= DIRECT_POINTERS){
+        return 0;
+    }
 
     inode->blocks[inode->quantBlocks] = blockIndex;
     time(&inode->modificationDate); //FIXME: possível problema com lógica de ponteiros
 
     inode->quantBlocks++;
+
+    return 1;
 }
 
 /**
@@ -61,14 +70,15 @@ void addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex){
  * @param iNodeIndex
  * @param blockIndex
  * 
- * @returns 1 case success, 0 case does not found block
+ * @returns 1 case success;
+ * @returns 0 case does not found block.
  */
 int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex){
     Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
 
     for(int i = 0; i < inode->quantBlocks; i++){
         if(inode->blocks[i] == blockIndex){
-            for(int j = i; j < inode < inode->quantBlocks - 1; j++){
+            for(int j = i; j < inode->quantBlocks - 1; j++){
                 inode->blocks[j] = inode->blocks[j + 1]; // Arrasta os blocos uma posição para trás a cada iteração.
             }
 
@@ -84,32 +94,25 @@ int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex
 }
 
 /**
- * @param iNodeTable
- * @param iNodeIndex
- * @param pointerIndex
- * @param blockIndex
+ * @param iNodeTable Tabela de i-nodes
+ * @param iNodeIndex Índice do i-node que será acessado
+ * @param directPointerIndex Índice do ponteiro direto do i-node para o bloco a ser acessado
+ * @param blockIndex Índice do bloco dentro do i-node que será acessado
  * 
- * @returns 
+ * @returns
+ * @returns
  */
-int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int pointerIndex, uint32_t *blockIndex){
+int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int directPointerIndex, uint32_t *blockIndex){
     Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
 
-    if(pointerIndex < 0 || pointerIndex >= inode->quantBlocks){ // Invalid value 
+    if(directPointerIndex < 0 || directPointerIndex >= inode->quantBlocks){ // Valor inválido 
         return 0;
     }
 
-    *blockIndex = inode->blocks[pointerIndex];
+    *blockIndex = inode->blocks[directPointerIndex];
     time(&inode->accessDate);
 
     return 1;
-}
-
-/**
- * 
- */
-static int getBlockOffset(){
-
-    //posição do bloco = início dos dados + (bloco * tamanho do bloco)
 }
 
 /**
@@ -117,8 +120,11 @@ static int getBlockOffset(){
  * @param iNodetable Tabela de i-nodes
  * @param iNodeIndex Índice do i-node
  * @param buffer Buffer onde os dados serão escritos
+ * 
+ * @returns 1 caso a informação passada seja escrita corretamente nos blocos;
+ * @returns 0 caso a operação falhe.
  */
-void iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* buffer){
+int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* buffer){
     Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
 
     char* data = buffer;
@@ -139,23 +145,28 @@ void iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* 
             }
         }
 
-        readBlock(disk, inode->blocks[i], (data+offset), bytesToRead);
+        if(readBlock(disk, inode->blocks[i], (data+offset), bytesToRead) == OPERATION_ERROR){
+            return 0;
+        }
         offset += bytesToRead;
     }
 
     time(&inode->accessDate);
+
+    return 1;
 }
 
 /**
  * @param disk Disco virtual previamente aberto
  * @param iNodeTable Tabela de i-nodes
  * @param iNodeIndex Índice do i-node que receberá os dados
- * @param buffer conteúdo que será escrito
- * @param size quantidade de bytes
+ * @param buffer Conteúdo que será escrito
+ * @param size Quantidade de bytes
  * 
- * 
+ * @returns 1 caso a informação passada seja escrita corretamente nos blocos;
+ * @returns 0 caso a operação falhe.
  */
-void iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const void *buffer, uint32_t size){
+int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const void *buffer, uint32_t size){
     Inode* inode = &iNodeTable[iNodeIndex]; // Ponteiro ajustado para o endereço do i-node que quero acessar
 
     const char *data = buffer;
@@ -184,12 +195,16 @@ void iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const
         }
 
         // Atribui um i-node ao bloco
-        addBlockToInode(iNodeTable, iNodeIndex, blockIndex);
+        if(!addBlockToInode(iNodeTable, iNodeIndex, blockIndex)){
+            return 0;
+        }
 
         //Variável local declarada unicamente para definir a quantidade de bytes restantes a serem armazenados no disco.
         uint32_t bytesToWrite = remaining > disk->header.blockSize ? disk->header.blockSize : remaining;
 
-        writeBlock(disk, blockIndex, (data+offset), bytesToWrite);
+        if(writeBlock(disk, blockIndex, (data+offset), bytesToWrite) == OPERATION_ERROR){
+            return 0;
+        }
 
         // Atualiza dados de apoio
         remaining -= bytesToWrite;
@@ -198,17 +213,108 @@ void iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const
 
     inode->size = size;
     time(&inode->modificationDate);
+
+    return 1;
 }
 
 /**
- * Não sei se essa função é realmente necessária
+ * @param iNodeTable Ponteiro para a tabela de i-nodes a qual o i-node será modificado
+ * @param disk Ponteiro para o disco virtual onde os blocos estão localizados
+ * @param index Índice do i-node alvo na tabela de i-nodes
+ * 
+ * @returns 1 Se o i-node e todos os blocos dentro do i-node tiveram sua referência de memória liberadas;
+ * @returns 0 Caso a operação tenha falhado.
  */
-void freeInode(Inode iNodeTable[], int index){
+int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index){
     iNodeTable[index].isBeingUsed = 0;
 
-    /* Free the direct pointers is necessary?
     for(int i = 0; i < DIRECT_POINTERS; i++){
-        iNodeTable[index].blocks[i] = -1;
+        if(freeBlock(disk, (uint32_t)i) == OPERATION_ERROR){
+            return 0;
+        }
     }
-    */
+
+    return 1;
 }
+
+
+/**
+ * @param date Data a ser exibida na interface do terminal
+ */
+static void printDate(time_t date) {
+    char buffer[30];
+
+    struct tm *timeInfo = localtime(&date);
+
+    strftime(buffer, sizeof(buffer), "%d/%m/%Y %H:%M:%S", timeInfo);
+
+    printf("%s\n", buffer);
+}
+
+/**
+ * @param iNode i-node que sera exibido
+ */
+static void printInode(Inode iNode){
+    printf("\tId do i-node:       %d\n", iNode.iNodeID);
+    printf("\tTipo do i-node:     ");
+    
+    if(iNode.type == FILE){
+        printf("File\n");
+        printf("\tTamanho do arquivo: %d bytes\n", iNode.size);
+    }
+    else{
+        printf("Directory.\n");
+    }
+    
+    printf("\tData de criacao:    ");
+    printDate(iNode.creationDate);
+    
+    printf("\tUltima modificacao: ");
+    printDate(iNode.modificationDate);
+    
+    printf("\tUltimo acesso:      ");
+    printDate(iNode.accessDate);
+    
+    printf("\tPonteiros diretos:\n");
+    for(int j = 0; j < DIRECT_POINTERS; j++){
+        printf("\t\tIndice do bloco %d: \n", iNode.blocks[j]);
+    }
+}
+
+/**
+ * @param iNodeTable Tabela de i-nodes que serão exibidas detalhadamente
+ */
+void printInodeTableRelatory(Inode iNodeTable[]){
+    printf("Lista de i-nodes:\n");
+    for(int i = 0; i < MAX_INODES; i++){
+        if(!iNodeTable[i].isBeingUsed) continue;
+        printInode(iNodeTable[i]);
+    }
+}
+
+/*
+static int main(){
+    Inode* iNodeTable = initializeInode(iNodeTable);
+    VirtualDisk disk;
+
+    //Inicialização de disco ainda não relacionada aos i-nodes
+    if(createVirtualDisk("teste.disk", 1024 * 1024, 512) == OPERATION_ERROR){
+        printf("Erro ao criar disco.\n");
+        return 1;
+    }
+
+    if(openVirtualDisk(&disk, "teste.disk") != OPERATION_OK){
+        printf("Erro ao abrir disco.\n");
+        return 1;
+    }
+    printDiskInfo(&disk);
+
+
+
+    for(int i = 0; i < 10; i++){
+        
+    }
+
+    return 0;
+}
+*/

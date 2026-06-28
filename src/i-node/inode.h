@@ -1,6 +1,7 @@
 #ifndef INODE_H
 #define INODE_H
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
@@ -31,17 +32,21 @@ typedef struct Inode{
     int quantBlocks;
 }Inode;
 
-void initializeInode(Inode* iNodeTable);
+Inode* initializeInode(Inode* iNodeTable);
 int allocInode(Inode iNodeTable[], FileType type);
 
-void addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex);
+int addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex);
 int removeBlockFromInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex);
-int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int pointerIndex, uint32_t *blockIndex);
+int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int directPointerIndex, uint32_t *blockIndex);
 
-void iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* buffer);
-void iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const void* buffer, uint32_t size);
+int iNodeReadData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, void* buffer);
+int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const void* buffer, uint32_t size);
 
-void freeInode(Inode iNodeTable[], int index);
+static void printDate(time_t date);
+static void printInode(Inode iNode);
+void printInodeTableRelatory(Inode iNodeTable[]);
+
+int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index);
 
 
 #endif // INODE_H
