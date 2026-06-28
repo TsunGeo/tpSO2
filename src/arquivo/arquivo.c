@@ -228,8 +228,11 @@ void writeFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *nam
 
     inodeTable[inodeFile].quantBlocks = 0;
 
-    iNodeWriteData(disk, inodeTable, inodeFile, buffer, size);
-    printf("Dados gravados com sucesso no arquivo '%s'\n", name);
+    if (iNodeWriteData(disk, inodeTable, inodeFile, buffer, size)) {
+        printf("Dados gravados com sucesso no arquivo '%s'\n", name);
+    } else {
+        printf("Erro: nao foi possivel gravar os dados no arquivo '%s'\n", name);
+    }
 }
 
 void readFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *name, void *buffer){
