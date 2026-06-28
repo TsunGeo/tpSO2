@@ -68,8 +68,8 @@ Além desses módulos, o projeto utiliza um arquivo de configuração compartilh
 
 <p>Francyelle de Oliveira Serrano</p>
 
-<p>Nome do Integrante 4</p>
+<p>Gabriel Luiz Magalhães Amorim</p>
 
-<p>Nome do Integrante 5</p>
+<p>Rayanne Christina Papini de Melo Souza</p>
 
-<p>Nome do Integrante 6</p>
+<p>Rafael Resende Soares</p>

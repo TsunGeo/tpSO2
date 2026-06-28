@@ -10,7 +10,10 @@ SOURCES = \
 	src/i-node/inode.c \
 	src/diretorio/diretorio.c \
 	src/arquivo/arquivo.c \
-	src/importacao/importacao.c
+	src/importacao/importacao.c \
+	src/interface/interface.c \
+	src/interface/interface_utils.c \
+    src/interface/interface_view.c
 
 OBJECTS = $(SOURCES:.c=.o)
 

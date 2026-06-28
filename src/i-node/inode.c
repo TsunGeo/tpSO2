@@ -5,7 +5,9 @@
  * 
  */
 void initializeInode(Inode* iNodeTable){
-    iNodeTable = (Inode*)malloc(sizeof(Inode) * MAX_INODES);
+    if (iNodeTable == NULL) {
+        return;
+    }
 
     for(int i = 0; i < MAX_INODES; i++){
         iNodeTable[i].isBeingUsed = 0;
@@ -113,14 +115,6 @@ int getBlockFromInode(Inode iNodeTable[], int iNodeIndex, int pointerIndex, uint
     time(&inode->accessDate);
 
     return 1;
-}
-
-/**
- * 
- */
-static int getBlockOffset(){
-
-    //posição do bloco = início dos dados + (bloco * tamanho do bloco)
 }
 
 /**
