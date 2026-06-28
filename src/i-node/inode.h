@@ -32,7 +32,7 @@ typedef struct Inode{
     int quantBlocks;
 }Inode;
 
-Inode* initializeInode(Inode* iNodeTable);
+void initializeInode(Inode* iNodeTable);
 int allocInode(Inode iNodeTable[], FileType type);
 
 int addBlockToInode(Inode iNodeTable[], int iNodeIndex, uint32_t blockIndex);

@@ -4,9 +4,7 @@
 /**
  * @param iNodeTable Ponteiro para tabela de i-nodes.
  */
-Inode* initializeInode(Inode* iNodeTable){
-    iNodeTable = (Inode*)malloc(sizeof(Inode) * MAX_INODES);
-
+void initializeInode(Inode* iNodeTable){
     for(int i = 0; i < MAX_INODES; i++){
         iNodeTable[i].iNodeID = i+1;
         iNodeTable[i].isBeingUsed = 0;
@@ -18,8 +16,6 @@ Inode* initializeInode(Inode* iNodeTable){
                                                     // cada posição do vetor.
         }
     }
-
-    return iNodeTable;
 }
 
 /**
@@ -238,27 +234,6 @@ int iNodeWriteData(VirtualDisk* disk, Inode iNodeTable[], int iNodeIndex, const 
 }
 
 /**
- * @param iNodeTable Ponteiro para a tabela de i-nodes a qual o i-node será modificado
- * @param disk Ponteiro para o disco virtual onde os blocos estão localizados
- * @param index Índice do i-node alvo na tabela de i-nodes
- * 
- * @returns 1 Se o i-node e todos os blocos dentro do i-node tiveram sua referência de memória liberadas;
- * @returns 0 Caso a operação tenha falhado.
- */
-int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index){
-    iNodeTable[index].isBeingUsed = 0;
-
-    for(int i = 0; i < DIRECT_POINTERS; i++){
-        if(freeBlock(disk, (uint32_t)i) == OPERATION_ERROR){
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-
-/**
  * @param date Data a ser exibida na interface do terminal
  */
 static void printDate(time_t date) {
@@ -312,12 +287,34 @@ void printInodeTableRelatory(Inode iNodeTable[]){
     }
 }
 
+/**
+ * @param iNodeTable Ponteiro para a tabela de i-nodes a qual o i-node será modificado
+ * @param disk Ponteiro para o disco virtual onde os blocos estão localizados
+ * @param index Índice do i-node alvo na tabela de i-nodes
+ * 
+ * @returns 1 Se o i-node e todos os blocos dentro do i-node tiveram sua referência de memória liberadas;
+ * @returns 0 Caso a operação tenha falhado.
+ */
+int freeInode(Inode iNodeTable[], VirtualDisk* disk, int index){
+    iNodeTable[index].isBeingUsed = 0;
+
+    for(int i = 0; i < DIRECT_POINTERS; i++){
+        if(freeBlock(disk, (uint32_t)i) == OPERATION_ERROR){
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 // Ambiente de teste.
 // Remova o comentário para executar o teste completo
 /*
 int main(){
-    Inode* iNodeTable = initializeInode(iNodeTable);
+    Inode iNodeTable[MAX_INODES];
     VirtualDisk disk;
+    
+    initializeInode(iNodeTable);
 
     if(createVirtualDisk("teste.disk", 1024 * 1024, 512) == OPERATION_ERROR){
         printf("Erro ao criar disco.\n");
@@ -456,8 +453,6 @@ int main(){
     printDiskInfo(&disk);
 
     closeVirtualDisk(&disk);
-
-    free(iNodeTable);
 
     return 0;
 }
