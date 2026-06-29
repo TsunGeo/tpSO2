@@ -34,7 +34,7 @@ void createFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *na
     if (!addEntry(disk, inodeTable, parentInode, name, newInode,TYPE_FILE))
     {
         printf("Erro: Nao foi possivel criar o arquivo '%s'\n", name);
-        freeInode(inodeTable, newInode);
+        freeInode(inodeTable, disk, newInode);
         return;
     }
 
@@ -85,7 +85,7 @@ void deleteFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *na
         return;
     }
 
-    freeInode(inodeTable, inodeRemove);
+    freeInode(inodeTable, disk, inodeRemove);
 
     printf("Arquivo '%s' removido com sucesso\n", name);
 }
@@ -227,9 +227,13 @@ void writeFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *nam
     }
 
     inodeTable[inodeFile].quantBlocks = 0;
+    inodeTable[inodeFile].size = 0;
 
-    iNodeWriteData(disk, inodeTable, inodeFile, buffer, size);
-    printf("Dados gravados com sucesso no arquivo '%s'\n", name);
+    if (iNodeWriteData(disk, inodeTable, inodeFile, buffer, size)) {
+        printf("Dados gravados com sucesso no arquivo '%s'\n", name);
+    } else {
+        printf("Erro: nao foi possivel gravar os dados no arquivo '%s'\n", name);
+    }
 }
 
 void readFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *name, void *buffer){
@@ -255,8 +259,11 @@ void readFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *name
         return;
     }
 
-    iNodeReadData(disk, inodeTable, inodeFile, buffer);
-    printf("Arquivo '%s' lido com sucesso\n", name);
+    if (iNodeReadData(disk, inodeTable, inodeFile, buffer)) {
+        printf("Arquivo '%s' lido com sucesso\n", name);
+    } else {
+        printf("Erro: nao foi possivel ler o arquivo '%s'\n", name);
+    }
 }
 
 void displayFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *name){
@@ -284,7 +291,11 @@ void displayFile(VirtualDisk *disk, Inode inodeTable[], int parentInode, char *n
         return;
     }
     
-    iNodeReadData(disk, inodeTable, inodeFile, buffer);
+    if (!iNodeReadData(disk, inodeTable, inodeFile, buffer)) {
+        printf("Erro: nao foi possivel ler o arquivo '%s'\n", name);
+        free(buffer);
+        return;
+    }
 
     buffer[inodeTable[inodeFile].size] = '\0';
 
